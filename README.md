@@ -8,10 +8,14 @@ These plugins are designed to extend monitoring capabilities across a variety of
 
 ### check_chrony_primary
 Verifies that Chrony has selected a primary NTP source and validates offset and optional jitter thresholds.
+
+### check_chrony_tracking
+Validates Chrony synchronization health using chronyc tracking.
+
+### check_selinux_status
+Verifies a system's SELinux status matches an administrator-defined expected state.
  
 ## Future Plugins
-### chrony tracking
-### selinux status
 ### palo alto nat pool
 ### palo alto cps
 ### palo alto dos
