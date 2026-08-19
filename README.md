@@ -16,8 +16,23 @@ Validates Chrony synchronization health using chronyc tracking.
 Verifies a system's SELinux status matches an administrator-defined expected state.
  
 ## Future Plugins
-### palo alto nat pool
-### palo alto cps
-### palo alto dos
-### check_iis_apppools
-### event_handlers
+### collect_palo_natpools.py
+### collect_palo_cps.py
+### collect_palo_dos.py
+### check_iis_apppools.ps1
+### check_dsml.pl (Primary Only - Directory Service Markup Language)
+### check_ffmpeg.sh
+### check_logrotate_nagios_multi_rhel.sh
+### check_papercut_status
+### check_selinux_auditd_rotation.sh
+### disablenotifications_host.sh
+### disablenotifications_service.sh
+### enablenotifications.sh
+### pu_check_curl.php (Primary Only)
+### pu_check_generic (Primary Only)
+### pu_check_https_aws_duo (Primary Only)
+### pu_check_netid_ws.pl (Primary Only)
+### pu-check-website
+### pu-check-website-test (Primary Only)
+### pu_check_wso2_api.sh (Primary Only)
+### pu-notify-all-emails
