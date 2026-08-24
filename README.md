@@ -12,6 +12,9 @@ Verifies that Chrony has selected a primary NTP source and validates offset and 
 ### check_chrony_tracking
 Validates Chrony synchronization health using chronyc tracking.
 
+### check_iis_apppools.ps1
+Monitor all application pools or a specified list of application pools.
+
 ### check_selinux_status
 Verifies a system's SELinux status matches an administrator-defined expected state.
  
@@ -19,7 +22,7 @@ Verifies a system's SELinux status matches an administrator-defined expected sta
 ### collect_palo_natpools.py
 ### collect_palo_cps.py
 ### collect_palo_dos.py
-### check_iis_apppools.ps1
+
 ### check_dsml.pl (Primary Only - Directory Service Markup Language)
 ### check_ffmpeg.sh
 ### check_logrotate_nagios_multi_rhel.sh
