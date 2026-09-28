@@ -1,71 +1,28 @@
 # check_chrony_tracking
 
-Nagios plugin that validates Chrony synchronization health using `chronyc tracking`.
+Nagios plugin that checks Chrony's synchronization state and system clock offset using `chronyc tracking`.
 
-This check verifies that the system clock is synchronized, that Chrony is tracking a valid time reference, and that the current system offset remains within administrator-defined thresholds.
+The plugin considers Chrony synchronized when `Leap status` is `Normal` and `Stratum` is nonzero. It checks the absolute value of the `System time` offset against configured warning and critical thresholds. It also reports Chrony's `RMS offset` as jitter, with optional jitter thresholds.
 
-Unlike peer-based checks, this plugin does not depend on which NTP source is currently selected. It relies on Chrony's authoritative synchronization state and is the preferred method for monitoring overall time health.
+This check does not depend on which NTP source is selected. Use `check_chrony_primary.sh` when monitoring must confirm that a primary source (`^*`) is selected.
 
 ## Features
 
-- Verifies Chrony is synchronized
-- Validates synchronization state using `chronyc tracking`
+- Checks Chrony's synchronization state using leap status and stratum
 - Checks system offset against warning and critical thresholds
-- Optional RMS jitter threshold monitoring
+- Optionally checks RMS offset, reported as jitter
 - Supports local and remote Chrony queries
 - Returns standard Nagios plugin status codes
-- Provides performance data for graphing
+- Provides offset and jitter performance data
 - Lightweight Bash implementation
 
 ## Requirements
 
 - Bash
 - Chrony (`chronyc`)
-- bc
+- `bc`
 
 ## Usage
 
 ```bash
 check_chrony_tracking.sh [-H host] -w offset[,jitter] -c offset[,jitter]
-```
-
-## Threshold Format
-
-Thresholds are specified in seconds.
-
-Offset thresholds are always required.
-
-Jitter thresholds are optional.
-
-### Offset Only (Recommended)
-
-```bash
-check_chrony_tracking.sh -w 0.001 -c 0.002
-```
-
-### Offset and Jitter
-
-```bash
-check_chrony_tracking.sh -w 0.001,0.010 -c 0.002,0.050
-```
-
-### Remote Host
-
-```bash
-check_chrony_tracking.sh -H ntpserver.example.com -w 0.001 -c 0.002
-```
-
-## Example Output
-
-### OK
-
-```text
-OK - Chrony synchronized offset=0.000123s jitter=0.000456s | offset=0.000123s jitter=0.000456s
-```
-
-### WARNING
-
-```text
-WARNING - System offset=0.001500s | offset=0.001500s jitter=0.000456s
-```
-
