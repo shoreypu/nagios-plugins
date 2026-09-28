@@ -9,9 +9,12 @@
     - Read-only check (no start/stop actions performed)
     - Designed for use with Nagios XI via NCPA
     - Supports checking all pools or a specified list
+    - Reports requested pools that do not exist
 
 .PARAMETER AppPools
-    Comma-separated list of IIS Application Pool names to check.
+    Comma-separated list of IIS Application Pool names to check. Multiple
+    arguments are also accepted because some NCPA callers split arguments at
+    commas or whitespace.
 
     Examples:
         "DefaultAppPool"
@@ -41,7 +44,7 @@
         -M 'plugins/check_iis_apppools.ps1' `
         -a "AppPool1,AppPool2"
 
-.OUTPUT
+.OUTPUTS
     OK:
         All monitored app pools are in Started state
 
@@ -52,13 +55,26 @@
 
     CRITICAL:
         One or more app pools are Stopped
-        OR no matching app pools were found
+        OR one or more requested app pools do not exist
 
     Includes performance data:
         running=<count> total=<count> stopped=<count> transitional=<count>
+        missing=<count>
 
 .NOTES
-    Author: Adapted for Nagios XI use
+    VERSION CONTROL:
+        Author: John Shorey
+        Version: 1.2.1
+        Last Updated: 2026-09-21
+
+        Revision History:
+            1.2.1 - Fixed the AppPool argument normalization pipeline before
+                    de-duplication.
+            1.2.0 - Strip quotes and surrounding whitespace from AppPool
+                arguments and remove duplicate requests.
+            1.1.0 - Accept multiple AppPool arguments, report missing pools, and
+                    add missing-pool performance data.
+            1.0.0 - Initial IIS AppPool status check.
 
     Requirements:
         - IIS PowerShell module (WebAdministration)
@@ -104,39 +120,64 @@
 #>
 
 Param(
-    [Parameter(Mandatory=$false, Position=0)]
-    [string]$AppPools = "All"
+    [Parameter(Mandatory=$false, Position=0, ValueFromRemainingArguments=$true)]
+    [string[]]$AppPools = @("All")
 )
 
 $ExitCode = 0
 $StoppedList = @()
 $TransitionalList = @()
 
-# Handle input
-if ([string]::IsNullOrWhiteSpace($AppPools) -or $AppPools -eq "All") {
-    $AppPoolsList = "All"
-} else {
-    $AppPoolsList = $AppPools -split "," | ForEach-Object { $_.Trim() }
+# Handle input from either a single comma-separated argument or multiple
+# arguments supplied by the caller.
+$AppPoolsList = @(
+    $AppPools |
+        ForEach-Object { $_ -split "," } |
+        ForEach-Object { $_.Trim(" `"`t") } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique
+)
+
+if ($AppPoolsList.Count -eq 0 -or $AppPoolsList -contains "All") {
+    $AppPoolsList = @("All")
 }
+$CheckAll = $AppPoolsList.Count -eq 1 -and $AppPoolsList[0] -ieq "All"
 
 # Load module
 Import-Module WebAdministration -ErrorAction SilentlyContinue
 
 if (-not (Get-Module -Name WebAdministration)) {
-    Write-Output "CRITICAL: WebAdministration module not available | running=0 total=0 stopped=0 transitional=0"
+    Write-Output "CRITICAL: WebAdministration module not available | running=0 total=0 stopped=0 transitional=0 missing=0"
     Exit 2
 }
 
-$AllPools = Get-WebAppPoolState
+$AllPools = @()
+try {
+    $AllPools = @(Get-WebAppPoolState -ErrorAction Stop)
+}
+catch {
+    Write-Output "CRITICAL: Unable to query IIS application pools: $($_.Exception.Message) | running=0 total=0 stopped=0 transitional=0 missing=0"
+    Exit 2
+}
+
 $Total = 0
 $Running = 0
 $Transitional = 0
+$FoundPools = @()
 
 foreach ($Pool in $AllPools) {
-    $Name = $Pool.ItemXPath.Split("'")[1]
+    if ($Pool.ItemXPath -match "name='([^']+)'") {
+        $Name = $Matches[1]
+    }
+    else {
+        continue
+    }
+
     $State = $Pool.Value
 
-    if (($AppPoolsList -eq "All") -or ($AppPoolsList -contains $Name)) {
+    if ($CheckAll -or ($AppPoolsList -contains $Name)) {
+
+        $FoundPools += $Name
 
         $Total++
 
@@ -163,27 +204,50 @@ foreach ($Pool in $AllPools) {
     }
 }
 
-# No matches
+# Identify requested pools that were not returned by IIS.
+$MissingPools = @()
+if (-not $CheckAll) {
+    $MissingPools = @($AppPoolsList | Where-Object { $FoundPools -notcontains $_ })
+}
+
+# No matches.
 if ($Total -eq 0) {
-    Write-Output "CRITICAL: No matching app pools found | running=0 total=0 stopped=0 transitional=0"
+    if ($MissingPools.Count -gt 0) {
+        $Output = "CRITICAL: Missing AppPools: " + ($MissingPools -join ", ")
+    }
+    else {
+        $Output = "CRITICAL: No IIS application pools found"
+    }
+
+    $Output += " | running=0 total=0 stopped=0 transitional=0 missing=$($MissingPools.Count)"
+    Write-Output $Output
     Exit 2
 }
 
-# Determine status priority: CRITICAL > WARNING > OK
+# Determine status priority: missing/stopped > transitional > OK.
+$Messages = @()
+if ($MissingPools.Count -gt 0) {
+    $Messages += "Missing AppPools: " + ($MissingPools -join ", ")
+}
 if ($StoppedList.Count -gt 0) {
+    $Messages += "Stopped AppPools: " + ($StoppedList -join ", ")
+}
+if ($TransitionalList.Count -gt 0) {
+    $Messages += "Transitional AppPools: " + ($TransitionalList -join ", ")
+}
+
+if ($MissingPools.Count -gt 0 -or $StoppedList.Count -gt 0) {
     $ExitCode = 2
-    $Output = "CRITICAL: Stopped AppPools: " + ($StoppedList -join ", ")
+    $Output = "CRITICAL: " + ($Messages -join "; ")
 }
 elseif ($TransitionalList.Count -gt 0) {
     $ExitCode = 1
-    $Output = "WARNING: Transitional AppPools: " + ($TransitionalList -join ", ")
+    $Output = "WARNING: " + ($Messages -join "; ")
 }
 else {
     $Output = "OK: All AppPools running"
 }
 
-# Perfdata
-$Output += " | running=$Running total=$Total stopped=$($StoppedList.Count) transitional=$Transitional"
-
+$Output += " | running=$Running total=$Total stopped=$($StoppedList.Count) transitional=$Transitional missing=$($MissingPools.Count)"
 Write-Output $Output
 Exit $ExitCode
