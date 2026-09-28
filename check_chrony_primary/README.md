@@ -1,25 +1,25 @@
 # check_chrony_primary
 
-Nagios plugin that verifies Chrony has selected a primary NTP source and validates offset and optional jitter thresholds for the selected source.
+Nagios plugin that verifies Chrony has selected a primary NTP source and checks its system tracking offset and RMS offset against configured thresholds.
 
-This check is intended for environments where monitoring must confirm that Chrony has an active primary source in addition to verifying synchronization quality.
+The selected primary is identified from `chronyc sources -n`. Offset metrics come from `chronyc tracking`, so they describe Chrony’s system tracking state rather than measurements for that individual peer. The plugin reports RMS offset as jitter.
 
 ## Features
 
-- Verifies a primary Chrony source is selected (`^*`)
-- Checks offset against warning and critical thresholds
-- Optional jitter threshold monitoring
+- Verifies that a primary Chrony source is selected (`^*`)
+- Checks the absolute value of the clock offset against warning and critical thresholds
+- Optionally checks RMS offset, reported as jitter
 - Supports local and remote Chrony queries
 - Returns standard Nagios plugin status codes
-- Provides performance data for graphing and trending
+- Provides offset and jitter performance data for graphing and trending
 
 ## Requirements
 
 - Bash
 - Chrony (`chronyc`)
-- bc
+- `bc`
 
 ## Usage
 
-```bash
+```text
 check_chrony_primary.sh [-H host] -w offset[,jitter] -c offset[,jitter]
