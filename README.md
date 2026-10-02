@@ -17,6 +17,9 @@ Monitor all application pools or a specified list of application pools.
 
 ### check_selinux_status
 Verifies a system's SELinux status matches an administrator-defined expected state.
+
+### check_process_uptime.ps1
+Checks for Windows process uptime.
  
 ## Future Plugins
 ### collect_palo_natpools.py
@@ -40,5 +43,5 @@ Verifies a system's SELinux status matches an administrator-defined expected sta
 ### pu_check_wso2_api.sh (Primary Only)
 ### pu-notify-all-emails
 ### check_fileage.ps1 (Review)
-### check_process_uptime.ps1 (Review)
+
 
